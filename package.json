@@ -1,0 +1,9 @@
+{
+    "name": "quickdocsregex",
+    "title": "QuickDocsRegEx",
+    "author": "Ole Kröger",
+    "homepage": "https://github.com/Wikunia/brackets-QuickDocsRegEx",
+    "version": "0.0.1",
+    "engines": { "brackets": ">=0.23" },
+    "description": "Inline short documentation for regular expressions in JS and PHP."
+}
