@@ -191,15 +191,15 @@ define(function(require, exports, module) {
 		if (last_char === '(') {
 			var start_group = 0;	
 		} else {
-			var square_bracket = get_square_bracket(0,last_char,regex);
-			// console.log('square_bracket.start: ' + square_bracket.start_pos + ' square_bracket.end: ' + square_bracket.end_pos);
-			// find first not escaped ( which isn't inside a [..] group
+			var sq_bracket = get_square_bracket(0,last_char,regex);
+			// console.log('sq_bracket.start: ' + sq_bracket.start_pos + ' sq_bracket.end: ' + sq_bracket.end_pos);
+			// find first not escaped '(' which isn't inside a [..] group
 			var i = 1;
-			while ((regex.substr(i,1) !== '(' || last_char == '\\' || (i > square_bracket.start_pos && i < square_bracket.end_pos)) && i < regex.length ) {
-				if (i > square_bracket.start_pos && i < square_bracket.end_pos) {
-					i = square_bracket.end_pos;	
+			while ((regex.substr(i,1) !== '(' || last_char == '\\' || (i > sq_bracket.start_pos && i < sq_bracket.end_pos)) && i < regex.length ) {
+				if (i > sq_bracket.start_pos && i < sq_bracket.end_pos) {
+					i = sq_bracket.end_pos;	
 					last_char = ']';
-					square_bracket = get_square_bracket(i,last_char,regex);
+					sq_bracket = get_square_bracket(i,last_char,regex);
 				} else {
 					if (last_char == '\\' && regex.substr(i,1) == '\\') {
 						i++;
@@ -224,11 +224,15 @@ define(function(require, exports, module) {
 			var another_group = 0; 
 			// is true if there is a group inside this group
 			var group_inside = false;
+			// save the position of the first inline group
 			var first_inline = {start: 0, end: 0};
 			// console.log('lastChar: ' + last_char);
 			while ((regex.charAt(i) !== ')' || last_char == '\\' || another_group != 0) && i < regex.length) {
 				if (regex.charAt(i) === '(' && last_char != '\\') {
-					first_inline.start = i;
+					// if it's the first inline group
+					if (another_group === 0) {
+						first_inline.start = i;
+					}
 					another_group++; // group in current group
 					group_inside = true;
 				}
@@ -246,6 +250,7 @@ define(function(require, exports, module) {
 			}
 			var end_group = i;	
 			// console.log('first_inline: ', first_inline);
+			// or delimiter without () and outside flags
 			var or_groups = add_or_delimiter(regex.substring(1,end_group),first_inline);
 			// console.log('or_groups of ' + regex.substring(1,end_group) + ' = ' , or_groups);
 			
@@ -388,7 +393,6 @@ define(function(require, exports, module) {
 			var temp = [];
 			for (var j = 0; j < or_parts.length; j++) {
 				if (or_parts[j] !== '') {
-					// console.log('get_next_part of ' + or_parts[j]);
 					var next_part = get_next_part(new Array(),or_parts[j]);
 					// only one element => no n_b part
 					if (next_part.length === 1) {
