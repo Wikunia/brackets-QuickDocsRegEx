@@ -74,7 +74,8 @@ define(function(require, exports, module) {
 			//console.log('sq_groups: ', groups);
 			
 			if (groups) {
-				return get_summary(groups,0,regex.flags,regex.lang);
+				// groups,group_counter,padding,global flags (i.e gmi), programming language,
+				return get_summary(groups,1,0,regex.flags,regex.lang);
 			} else {
 				return null;	
 			}
@@ -496,16 +497,18 @@ define(function(require, exports, module) {
 	/**
 		create the inline documentation summary
 		@param groups {array/object}
+		@param group_counter {integer} group_counter starting with 1 (+1 after a ()) 
 		@param padding {integer} normal 0, if it's a group inside another 1,...
 		@param flags {string} flags for the whole regex only for padding = 0
 		@param lang {string} javascript,php or clike (important for flags)
 		@return summary {string} stasjnladsnld
 	*/
-	function get_summary(groups,padding,flags,lang) {
+	function get_summary(groups,group_counter,padding,flags,lang) {
 				
 		// padding or groups inside groups
 		var padding_left = padding*10;
 		var summary = '<dl style="padding-left:' + padding_left + 'px">';
+			
 		
 		// global regex flags (modifier)
 		if (flags && padding === 0) {
@@ -544,16 +547,23 @@ define(function(require, exports, module) {
 		
 		for (var i = 0; i < groups.length; i++) {
 			// special colors (class) if it is a () group
-			if (groups[i].group) {				
+			if (groups[i].group) {	
+				summary += '<dl><dt>';
+				// add group counter if it's a capturing group (no inline flag)
+				if (!groups[i].i_flag) {
+					summary += '<span class="group_counter">[' + group_counter + ']</span> ';
+					group_counter++;
+				} 				
 				if (!groups[i].i_flag && !groups[i].o_flag) {
-					summary += '<dl><dt><span class="regex_group">(' + groups[i].text + ')</span></dt>';
+					summary += '<span class="regex_group">(' + groups[i].text + ')</span></dt>';
 				} else if (!groups[i].i_flag) {
-					summary += '<dl><dt><span class="regex_group">(' + groups[i].text + ')' + groups[i].o_flag + '</span></dt>';					
+					summary += '<span class="regex_group">(' + groups[i].text + ')' + groups[i].o_flag + '</span></dt>';					
 				} else if (!groups[i].o_flag){
-					summary += '<dl><dt><span class="regex_group">(' + groups[i].i_flag + groups[i].text + ')</span></dt>';
+					summary += '<span class="regex_group">(' + groups[i].i_flag + groups[i].text + ')</span></dt>';
 				} else {
-					summary += '<dl><dt><span class="regex_group">(' + groups[i].i_flag + groups[i].text + ')' + groups[i].o_flag + '</span></dt>';	
+					summary += '<span class="regex_group">(' + groups[i].i_flag + groups[i].text + ')' + groups[i].o_flag + '</span></dt>';	
 				}
+				 
 			} else { // no group
 				summary += '<dl><dt><span class="regex_nogroup">' + groups[i].text + '</span></dt>';
 			} 
@@ -629,10 +639,10 @@ define(function(require, exports, module) {
 			} else { // if this group doesn't contain a sqaure bracket group
 				// if this group contains a normal group
 				if (groups[i].n_b) {
-					summary += get_summary(groups[i].n_b,padding+1);	
+					summary += get_summary(groups[i].n_b,group_counter,padding+1);	
 				} else if (groups[i].or) { // or group
 					summary += '<dt>(Or alternatives) Matches one of the following parts:</dt>'; 
-					summary += get_summary(groups[i].or,padding+1);
+					summary += get_summary(groups[i].or,group_counter,padding+1);
 				} else {
 					// console.log('get_meaning of ', groups[i]);
 					var meanings = get_meaning(groups[i].text,false);

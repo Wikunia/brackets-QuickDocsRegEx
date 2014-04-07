@@ -3,6 +3,7 @@
 @emphasized-text-color: #454545;
 @heading-color: #454545;
 @link-color: #0083e8;
+@group_counter-color: rgba(9, 232, 0, 0.2);
 @group-color: rgba(0, 131, 232, .2);
 @nogroup-color: rgba(0, 232, 134, .2);
 @sqgroup-color: rgba(209, 202, 20, 0.2);
@@ -85,6 +86,11 @@
     p {
         line-height: 18px;
     }
+	
+	.group_counter {
+		background-color: @group_counter-color;
+		padding: 0px @span-padding-lr;
+	}
 	
 	.regex_group {
 		background-color: @group-color;
