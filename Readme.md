@@ -7,7 +7,7 @@ You can use the Navigation menu or ```Ctrl+K```, while your cursor is on a regul
 ![Example](image/example.png?raw=true)
 
 
-##The documentation includs
+##The documentation includes
 + description
 + cheatsheet
  + groups,square brackets
