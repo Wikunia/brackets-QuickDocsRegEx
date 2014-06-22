@@ -15,7 +15,7 @@ define(function(require, exports, module) {
  
     
     function inlineProvider(hostEditor, pos) {
-        // get editor content
+		// get editor content
         var currentDoc = DocumentManager.getCurrentDocument().getText();
        
         // get programming language
@@ -550,6 +550,7 @@ define(function(require, exports, module) {
 		}
 		
 		for (var i = 0; i < groups.length; i++) {
+			// console.log(groups[i]);
 			// special colors (class) if it is a () group
 			if (groups[i].group) {	
 				summary += '<dl><dt>';
@@ -559,17 +560,17 @@ define(function(require, exports, module) {
 					group_counter++;
 				} 				
 				if (!groups[i].i_flag && !groups[i].o_flag) {
-					summary += '<span class="regex_group">(' + groups[i].text + ')</span></dt>';
+					summary += '<span class="regex_group">(' + encodeHTML(groups[i].text) + ')</span></dt>';
 				} else if (!groups[i].i_flag) {
-					summary += '<span class="regex_group">(' + groups[i].text + ')' + groups[i].o_flag + '</span></dt>';					
+					summary += '<span class="regex_group">(' + encodeHTML(groups[i].text) + ')' + groups[i].o_flag + '</span></dt>';
 				} else if (!groups[i].o_flag){
-					summary += '<span class="regex_group">(' + groups[i].i_flag + groups[i].text + ')</span></dt>';
+					summary += '<span class="regex_group">(' + groups[i].i_flag + encodeHTML(groups[i].text) + ')</span></dt>';
 				} else {
-					summary += '<span class="regex_group">(' + groups[i].i_flag + groups[i].text + ')' + groups[i].o_flag + '</span></dt>';	
+					summary += '<span class="regex_group">(' + groups[i].i_flag + encodeHTML(groups[i].text) + ')' + groups[i].o_flag + '</span></dt>';
 				}
 				 
 			} else { // no group
-				summary += '<dl><dt><span class="regex_nogroup">' + groups[i].text + '</span></dt>';
+				summary += '<dl><dt><span class="regex_nogroup">' + encodeHTML(groups[i].text) + '</span></dt>';
 			} 
 			
 			// add inside and outside flags
@@ -661,6 +662,27 @@ define(function(require, exports, module) {
 	}
 	
 	/**
+	 * Encode an html string
+	 * @param {string} str html string
+	 * @returns encoded string
+	 */
+	function encodeHTML(str){
+	 var aStr = str.split(''),
+		 i = aStr.length,
+		 aRet = [];
+
+	   while (--i >= 0) {
+		var iC = aStr[i].charCodeAt();
+		if (iC < 65 || iC > 127 || (iC>90 && iC<97)) {
+		  aRet.push('&#'+iC+';');
+		} else {
+		  aRet.push(aStr[i]);
+		}
+	  }
+	 return aRet.reverse().join('');
+	}
+
+	/**
 		get the meaning of a regex part inside a group or a [] group or...
 		@param part {string} a regex part without groups in it.
 		@param square_brackets {boolean} the chars inside a [] have a different meaning
@@ -698,8 +720,8 @@ define(function(require, exports, module) {
 				i++;
 			}	
 		} else { // no square brackets
-			// console.log('no sq brackets: ' + part);
-			var regex = /(\^|\$|{(\d+?)(,)?(\d*?)}(\??)|\*\?|\*|\+\?|\+|\?\?|\?|\\s|\\S|\\d|\\D|\\w|\\W|\\b|\\B|\\t)/g
+			//console.log('no sq brackets: ' + part);
+			var regex = /(\^|\$|{(\d+?)(,)?(\d*?)}(\??)|\*\?|\*|\+\?|\+|\?\?|\?|\\s|\\S|\\d|\\D|\\w|\\W|\\b|\\B|\\t|\\r|\\n)/g
 			var last = 0;
 			var double_match = false;
 			var last_matches = null;
@@ -746,12 +768,19 @@ define(function(require, exports, module) {
 				// FUTURE: Check if there is a \ before
 				var cu_char = part.charAt(matches.index-1);
 				
+				//console.log(matches[1]);
 				if (matches[1].charAt(0) === '\\') {
 					// console.log('match starts with a \\ ');
 					meanings.push(get_special_meaning(matches[1].charAt(1)));
 				} else {		
 					// console.log('match doesn\'t start with a \\ ');
 					switch(matches[1]) {
+						case "^":
+							meanings.push({text:matches[1],meaning:'assert position at start of the string',type:'assert'});
+							break;
+						case "$":
+							meanings.push({text:matches[1],meaning:'assert position at end of the string',type:'assert'});
+							break;
 						case "*?":
 						case "*":
 						case "+?":
@@ -767,12 +796,6 @@ define(function(require, exports, module) {
 								meanings.push({text:bfr.text,meaning:bfr.meaning,flag:matches[1],type:'flag',min:flg.min,max:flg.max,quant_type:flg.type});
 							}
 							break;
-						case "^":
-							meanings.push({text:matches[1],meaning:'assert position at start of the string',type:'assert'});
-							break;	
-						case "$":
-							meanings.push({text:matches[1],meaning:'assert position at end of the string',type:'assert'});
-							break;				
 					}
 				}
 				
@@ -810,8 +833,8 @@ define(function(require, exports, module) {
 			switch (meanings[i].type) {
 				case "flag":
 					if (meanings[i].text) {
-						result += '<dd><span class="text">' + meanings[i].text + meanings[i].flag + '</span> matches ';
-						result += '<span class="meaning">' + meanings[i].meaning + '</span> ';
+						result += '<dd><span class="text">' + encodeHTML(meanings[i].text) + meanings[i].flag + '</span> matches ';
+						result += '<span class="meaning">' + encodeHTML(meanings[i].meaning) + '</span> ';
 					}
 					if (meanings[i].min === meanings[i].max) { // exactly times (no quant_type)
 						result += 'exactly <span class="flag_between">' + meanings[i].min + '</span> times';						
@@ -829,28 +852,28 @@ define(function(require, exports, module) {
 					break;
 				case "literally":
 					if (sq_brackets && meanings[i].meaning.length > 1) {
-						result += '<dd><span class="text">' + meanings[i].text + '</span> matches a single character in the list ';
-						result += '<span class="meaning">' + meanings[i].meaning + '</span> literally</dd>';
+						result += '<dd><span class="text">' + encodeHTML(meanings[i].text) + '</span> matches a single character in the list ';
+						result += '<span class="meaning">' + encodeHTML(meanings[i].meaning) + '</span> literally</dd>';
 					} else { // normal or a single char
-						result += '<dd><span class="text">' + meanings[i].text + '</span> matches ';
-						result += '<span class="meaning">' + meanings[i].meaning + '</span> literally</dd>';	
+						result += '<dd><span class="text">' + encodeHTML(meanings[i].text) + '</span> matches ';
+						result += '<span class="meaning">' + encodeHTML(meanings[i].meaning) + '</span> literally</dd>';
 					}
 					break;
 				case "between":
 					// not possible if sq_brackets isn't true
 					if (sq_brackets) {
-						result += '<dd><span class="text">' + meanings[i].text + '</span> matches a singe character in the range between ';
+						result += '<dd><span class="text">' + encodeHTML(meanings[i].text) + '</span> matches a singe character in the range between ';
 						result += '<span class="meaning">' + meanings[i].a + '</span> and ';
 						result += '<span class="meaning">' + meanings[i].b + '</span></dd>';
 					}
 					break;
 				case "special":
-					result  += '<dd><span class="text">' + meanings[i].text + '</span> matches ';
-					result += '<span class="meaning">' + meanings[i].meaning + '</span></dd>';
+					result  += '<dd><span class="text">' + encodeHTML(meanings[i].text) + '</span> matches ';
+					result += '<span class="meaning">' + encodeHTML(meanings[i].meaning) + '</span></dd>';
 					break;
 				case "assert":
-					result  += '<dd><span class="text">' + meanings[i].text + '</span> ';
-					result += meanings[i].meaning + '</dd>';
+					result  += '<dd><span class="text">' + encodeHTML(meanings[i].text) + '</span> ';
+					result += encodeHTML(meanings[i].meaning) + '</dd>';
 					break;				
 			}
 			i++;	
@@ -894,6 +917,12 @@ define(function(require, exports, module) {
 				break;
 			case "t":
 				special_obj = {text:'\\' + char,meaning:'a tab',type:'special'};
+				break;
+			case "n":
+				special_obj = {text:'\\' + char,meaning:'a newline character',type:'special'};
+				break;
+			case "r":
+				special_obj = {text:'\\' + char,meaning:'a carriage return',type:'special'};
 				break;
 			default:
 				special_obj = {text:'\\' + char,meaning:char,type:'literally'};
