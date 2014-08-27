@@ -15,9 +15,6 @@ define(function(require, exports, module) {
  
     
     function inlineProvider(hostEditor, pos) {
-		// get editor content
-        var currentDoc = DocumentManager.getCurrentDocument().getText();
-       
         // get programming language
         var langId = hostEditor.getLanguageForSelection().getId();
         
@@ -31,18 +28,18 @@ define(function(require, exports, module) {
         if (sel.start.line !== sel.end.line) {
             return null;
         }
+		// get editor content
+        var line = hostEditor.document.getLine(sel.start.line);
        
 		// get the regex
-        var regex = get_regex(currentDoc,sel.start,langId);
-		// console.log('regex: ', regex);
+        var regex = get_regex(line,sel.start,langId);
+
 		// if the cursor is inside a regular expression
 		if (regex) {
 			var summary = regex2summary(regex);
 			
 			if (summary) {
-				// console.log(summary);
 				var cheatsheet = get_cheatsheet();
-				// console.log('cheatsheet: ' , cheatsheet);
 				var result = new $.Deferred();
 				var inlineWidget = new InlineDocsViewer(regex.ex,{SUMMARY:summary,CHEAT_NORMAL:cheatsheet.normal,CHEAT_FLAGS:cheatsheet.flags});
 				inlineWidget.load(hostEditor);
@@ -59,41 +56,32 @@ define(function(require, exports, module) {
 	*/
 	function regex2summary(regex) {
 		var parts = get_parts(regex.ex);	
-			// example (regex = 'abc(?:def)?') 
-			/* parts: 
-				abc (nogroup)
-				?:def (group)
-				? (nogroup)
-			*/
-			// console.log('parts: ', parts);
-			
-			// next part is to add the '?' as an outside flag and '?:' as an inside flag
-			var groups = add_flags(parts);
-			// console.log('groups: ', groups);
-			groups = add_sq_brackets(groups);
-			//console.log('sq_groups: ', groups);
-			
-			if (groups) {
-				// groups,group_counter,padding,global flags (i.e gmi), programming language,
-				return get_summary(groups,1,0,regex.flags,regex.lang);
-			} else {
-				return null;	
-			}
-			
+		// example (regex = 'abc(?:def)?')
+		/* parts:
+			abc (nogroup)
+			?:def (group)
+			? (nogroup)
+		*/
+
+		// next part is to add the '?' as an outside flag and '?:' as an inside flag
+		var groups = add_flags(parts);
+		groups = add_sq_brackets(groups);
+		if (groups) {
+			// groups,group_counter,padding,global flags (i.e gmi), programming language,
+			return get_summary(groups,1,0,regex.flags,regex.lang);
+		} else {
+			return null;
+		}
 	}
 	
-	/**
-        Gets the regex part
-        @param content  {string} content of document
-        @param pos      {Object} cursor position (pos.ch and pos.line)
-		@param langId 	{string} programming lang
-		@return regular expression as an object (.ex,.flag,.lang) null otherwise
-    */
-    function get_regex(content,pos,langId) {
-        // get the content of each line
-        var lines = content.split("\n");
-        // get the content of the selected line
-        var line = lines[pos.line];
+    /**
+     * Gets the regex part
+     * @param   {String} line   current line
+     * @param   {Object} pos    cursor position (pos.ch and pos.line)
+     * @param   {string} langId programming lang
+     * @returns {object} regular expression as an object (.ex,.flag,.lang) null otherwise
+     */
+    function get_regex(line,pos,langId) {
         // get string after current position
         var line_after = line.substr(pos.ch);
         // get string before current position
@@ -177,14 +165,13 @@ define(function(require, exports, module) {
 	}
 	
 	
-	/** 
-		get next part
-		@param groups {array} groups that already parsed
-		@param regex {string} part or whole regex
-		@return groups {array/object} 
-	*/
+	/**
+	 * get next part
+	 * @param   {array}        groups groups that already parsed
+	 * @param   {string}       regex  part or whole regex
+	 * @returns {array|object} groups
+	 */
 	function get_next_part(groups,regex) {
-		// console.log('next_part: (regex) ' + regex); 
 		// get first char
 		var last_char = regex.substr(0,1);
 		// if the regex part is starting with a group
@@ -192,7 +179,6 @@ define(function(require, exports, module) {
 			var start_group = 0;	
 		} else {
 			var sq_bracket = get_square_bracket(0,last_char,regex);
-			// console.log('sq_bracket.start: ' + sq_bracket.start_pos + ' sq_bracket.end: ' + sq_bracket.end_pos);
 			// find first not escaped '(' which isn't inside a [..] group
 			var i = 1;
 			while ((regex.substr(i,1) !== '(' || last_char == '\\' || (i > sq_bracket.start_pos && i < sq_bracket.end_pos)) && i < regex.length ) {
@@ -226,7 +212,6 @@ define(function(require, exports, module) {
 			var group_inside = false;
 			// save the position of the first inline group
 			var first_inline = {start: 0, end: 0};
-			// console.log('lastChar: ' + last_char);
 			while ((regex.charAt(i) !== ')' || last_char == '\\' || another_group != 0) && i < regex.length) {
 				if (regex.charAt(i) === '(' && last_char != '\\') {
 					// if it's the first inline group
@@ -248,11 +233,9 @@ define(function(require, exports, module) {
 				last_char = regex.substr(i,1);
 				i++;
 			}
-			var end_group = i;	
-			// console.log('first_inline: ', first_inline);
+			var end_group = i;
 			// or delimiter without () and outside flags
 			var or_groups = add_or_delimiter(regex.substring(1,end_group),first_inline);
-			// console.log('or_groups of ' + regex.substring(1,end_group) + ' = ' , or_groups);
 			
 			if (or_groups) { // if this group contains alternatives (ors)
 				groups.push({group:true,text:regex.substring(1,end_group),or:or_groups});
@@ -325,13 +308,11 @@ define(function(require, exports, module) {
 					// delete flag from text_part
 					parts[i].text = parts[i].text.substr(match[1].length);
 				}
-				// console.log('outside: ', match);	
 			}
 			// is a group
 			if (parts[i].group) {
 				// check for inside flags
 				var match = /^(\?:|\?!|\?=)/.exec(parts[i].text);
-				// console.log('inside: ', match);	
 				if (match) {
 					// set flag
 					parts[i].i_flag = match[1];
@@ -339,14 +320,12 @@ define(function(require, exports, module) {
 					parts[i].text = parts[i].text.substr(match[1].length);
 				}
 				if (parts[i].or) {
-					// console.log('add flags to (or): ' , parts[i].or);
 					parts[i].or = add_flags(parts[i].or);
 				}
 				
 				
 			}
 			if (parts[i].n_b) {
-				// console.log('add flags to (n_b): ' , parts[i].n_b);
 				parts[i].n_b = add_flags(parts[i].n_b);
 			}
 			
@@ -372,7 +351,6 @@ define(function(require, exports, module) {
 	*/
 	function add_or_delimiter(regex,inline_group) {
 		var or_parts = regex.split('|');
-		// console.log('or parts 1: ' , or_parts);
 		// if first part is inside an inline group will be parsed afterwards for this inline group
 		if (or_parts[0].length > inline_group.start && or_parts[0].length < inline_group.end) { 
 			return null;
@@ -382,12 +360,40 @@ define(function(require, exports, module) {
 		if (or_parts.length > 1) {
 			// the last part (length-1) must be a own or part
 			for (var j = 0; j < or_parts.length-1; j++) {
+				// the | can be inside an group ()
+				var groupOpen = 0;
+				var sqOpen = 0;
+				for (var c = 0; c < or_parts[j].length; c++) {
+					switch (or_parts[j].charAt(c)) {
+						case '\\':
+							c++;
+							break;
+						case '[':
+							sqOpen++;
+							break;
+						case ']':
+							sqOpen--;
+							break;
+						case '(':
+							groupOpen++;
+							break;
+						case ')':
+							groupOpen--;
+							break;
+					}
+					if (groupOpen != 0 || sqOpen != 0) {
+						or_parts[j+1] = or_parts[j] + '|' + or_parts[j+1]; // will be scanned again
+						or_parts[j] = '';
+					}
+				}
+				if (or_parts[j] != '') {
 					// there is an odd number of backslashes at the end
-					if (or_parts[j].match(/[^\\]([\\]([\\]{2})*?)$/)) {
+					if (or_parts[j].match(/(^|[^\\])([\\]([\\]{2})*?)$/)) {
 						// this match belongs to the next or group
 						or_parts[j+1] = or_parts[j] + '|' + or_parts[j+1];
 						or_parts[j] = '';
-					}				
+					}
+				}
 			}
 			// delete empty parts
 			var temp = [];
@@ -415,7 +421,6 @@ define(function(require, exports, module) {
 				return null;	
 			}
 		}
-		// console.log('or groups return: ' , or_groups);
 		return or_groups;	
 	}
 	
@@ -550,7 +555,6 @@ define(function(require, exports, module) {
 		}
 		
 		for (var i = 0; i < groups.length; i++) {
-			// console.log(groups[i]);
 			// special colors (class) if it is a () group
 			if (groups[i].group) {	
 				summary += '<dl><dt>';
@@ -587,17 +591,17 @@ define(function(require, exports, module) {
 			
 			// [] group 
 			if (groups[i].sq_b) {
-				// console.log('this group contains a square bracket group');
 				var current_pos = 0;
 				var j = 0;
 				while (groups[i].sq_b[j]) {
 					// check if current position is the start for a [] group
 					if (groups[i].sq_b[j].start_pos === current_pos) {
 						summary += '<dd>';
-						summary += '<dl><dt><span class="regex_square">' + groups[i].sq_b[j].text + '</span></dt>';
+						summary += '<dl><dt><span class="regex_square">'
+										+ groups[i].sq_b[j].text +
+									'</span> matches a single character present in the list below</dt>';
 						
 						var in_sq_text = groups[i].sq_b[j].text;
-						// console.log('in_sq_text: ' + in_sq_text);											   
 						if (groups[i].sq_b[j].i_flag) {
 							var flg = get_iflag_values(groups[i].sq_b[j].i_flag);
 							summary += '<dd><span class="flag">' + groups[i].sq_b[j].i_flag+ '</span> ' + flg.type + '</dd>';
@@ -634,7 +638,6 @@ define(function(require, exports, module) {
 					
 				}
 				// string after the last [] group if it exists
-				// console.log(current_pos + ' vs. ' + (groups[i].text.length));
 				if (current_pos != groups[i].text.length) {
 					var current_part = groups[i].text.substring(current_pos);
 					var meanings = get_meaning(current_part,false);
@@ -649,7 +652,6 @@ define(function(require, exports, module) {
 					summary += '<dt>(Or alternatives) Matches one of the following parts:</dt>'; 
 					summary += get_summary(groups[i].or,group_counter,padding+1);
 				} else {
-					// console.log('get_meaning of ', groups[i]);
 					var meanings = get_meaning(groups[i].text,false);
 					summary += add_meanings(meanings);
 				}
@@ -683,13 +685,12 @@ define(function(require, exports, module) {
 	}
 
 	/**
-		get the meaning of a regex part inside a group or a [] group or...
-		@param part {string} a regex part without groups in it.
-		@param square_brackets {boolean} the chars inside a [] have a different meaning
-		@return meaning {array/object} 
-	*/
+	 * get the meaning of a regex part inside a group or a [] group or...
+	 * @param   {string}       part            a regex part without groups in it.
+	 * @param   {boolean}      square_brackets the chars inside a [] have a different meaning
+	 * @returns {array/object} meaning
+	 */
 	function get_meaning(part,square_brackets) {
-		// console.log('get_meaning: ' + part + ',' + square_brackets);
 		var meanings = [];
 		if (square_brackets) {
 			var i = 0;
@@ -697,8 +698,6 @@ define(function(require, exports, module) {
 			while( i < part.length) {
 				// if current char is \
 				if (part.charAt(i) === '\\') {
-					// console.log('found a \ at pos: ' + i);
-					
 					// if last match was not directly before this match
 					// substring => char nr. i isn't part of text
 					if (last < i) { meanings.push({text:part.substring(last,i),meaning:part.substring(last,i),type:'literally'}); }
@@ -720,7 +719,6 @@ define(function(require, exports, module) {
 				i++;
 			}	
 		} else { // no square brackets
-			//console.log('no sq brackets: ' + part);
 			var regex = /(\^|\$|{(\d+?)(,)?(\d*?)}(\??)|\*\?|\*|\+\?|\+|\?\?|\?|\\s|\\S|\\d|\\D|\\w|\\W|\\b|\\B|\\t|\\r|\\n)/g
 			var last = 0;
 			var double_match = false;
@@ -729,7 +727,6 @@ define(function(require, exports, module) {
 			var correct_matches = [];
 			while (matches = regex.exec(part))
 			{
-				// console.log('current match: ' , matches);
 				// there must be an even number of slashes before (or 0) or part starts with a match
 				if (matches.index === 0 || part.substring(last,matches.index).match(/[^\\](([\\]{2})*?)$/)) {
 					correct_matches.push(matches);
@@ -738,10 +735,7 @@ define(function(require, exports, module) {
 			
 			
 			for (var matches; matches = correct_matches.shift(i,1);) {
-				// console.log('current correct match: ' , matches);
-				// console.log('last: ' + last);
 				if (last < matches.index) {
-					// console.log(last + ' < ' + (matches.index-1));
 					// string before current match
 					if (matches[1].charAt(0) === '\\') {
 						var str_before = part.substring(last,matches.index);
@@ -758,7 +752,6 @@ define(function(require, exports, module) {
 				if (last_matches) {
 					// if a \d,\s...  was directly before this (like: \d*?)
 					if (last_matches.index+2 === matches.index && last_matches[1].charAt(0) === '\\') {
-						// console.log('db match');
 						double_match = true;
 					} else {
 						double_match = false;	
@@ -767,13 +760,10 @@ define(function(require, exports, module) {
 				
 				// FUTURE: Check if there is a \ before
 				var cu_char = part.charAt(matches.index-1);
-				
-				//console.log(matches[1]);
+
 				if (matches[1].charAt(0) === '\\') {
-					// console.log('match starts with a \\ ');
 					meanings.push(get_special_meaning(matches[1].charAt(1)));
-				} else {		
-					// console.log('match doesn\'t start with a \\ ');
+				} else {
 					switch(matches[1]) {
 						case "^":
 							meanings.push({text:matches[1],meaning:'assert position at start of the string',type:'assert'});
@@ -798,9 +788,7 @@ define(function(require, exports, module) {
 							break;
 					}
 				}
-				
-		
-				// console.log('current meanings: ' , meanings);
+
 				// last index
 				last = matches.index+matches[1].length;
 				// last matches
@@ -813,7 +801,6 @@ define(function(require, exports, module) {
 				meanings.push({text:str_after,meaning:stripSlashes(str_after),type:'literally'});
 			}
 		}
-		// console.log('Meaning: ', meanings);
 		return meanings;
 	}
 	
@@ -825,7 +812,6 @@ define(function(require, exports, module) {
 	*/
 	function add_meanings(meanings,sq_brackets) {
 		sq_brackets = (typeof sq_brackets === "undefined") ? false : sq_brackets;
-		// console.log('add meanings: ' , meanings , ',' + sq_brackets);
 				
 		var result = '';
 		var i = 0;
@@ -955,7 +941,6 @@ define(function(require, exports, module) {
 				if (flag.charAt(0) === '{') { 
 					// delete the { and the }
 					var params = flag.substring(1,flag.indexOf('}')).split(',');
-					// console.log('params: ' , params);
 					var quant_type = (flag.indexOf('}') !== flag.length-1) ? 'lazy' : 'greedy';
 					var min = params[0];
 					var max = params[0];
