@@ -2,7 +2,7 @@
 This extension provides a quick documentation for regular expressions inside your JS or PHP code.
 
 ## How to use
-You can use the Navigation menu or ```Ctrl+K```, while your cursor is on a regular expression, to open the inline documentation.
+You can use the Navigation menu (Navigation->Quick Docs) or ```Ctrl+K```, while your cursor is on a regular expression, to open the inline documentation.
 
 ![Example](image/example.png?raw=true)
 
