@@ -55,7 +55,7 @@ define(function(require, exports, module) {
 		@return summary {string} complete summary for regex
 	*/
 	function regex2summary(regex) {
-		var parts = get_parts(regex.ex);	
+		var parts = get_parts(regex.ex);
 		// example (regex = 'abc(?:def)?')
 		/* parts:
 			abc (nogroup)
@@ -180,17 +180,18 @@ define(function(require, exports, module) {
 		} else {
 			var sq_bracket = get_square_bracket(0,last_char,regex);
 			// find first not escaped '(' which isn't inside a [..] group
-			var i = 1;
-			while ((regex.substr(i,1) !== '(' || last_char == '\\' || (i > sq_bracket.start_pos && i < sq_bracket.end_pos)) && i < regex.length ) {
+			var escaped = false;
+			var i = 0;
+			while ((regex.substr(i,1) !== '(' || escaped || (i > sq_bracket.start_pos && i < sq_bracket.end_pos)) && i < regex.length ) {
 				if (i > sq_bracket.start_pos && i < sq_bracket.end_pos) {
 					i = sq_bracket.end_pos;	
-					last_char = ']';
-					sq_bracket = get_square_bracket(i,last_char,regex);
+					sq_bracket = get_square_bracket(i,']',regex);
 				} else {
-					if (last_char == '\\' && regex.substr(i,1) == '\\') {
-						i++;
+					if (!escaped && regex.substr(i,1) == '\\') {
+						escaped = true;
+					} else {
+						escaped = false;	
 					}
-					last_char = regex.substr(i,1);
 					i++;
 				}
 			}
@@ -703,13 +704,13 @@ define(function(require, exports, module) {
 					if (last < i) { meanings.push({text:part.substring(last,i),meaning:part.substring(last,i),type:'literally'}); }
 					// which char is directly after the \
 					meanings.push(get_special_meaning(part.charAt(i+1)));
-					
-					
 					last = i+2;
 					i++;
 				} else if (part.charAt(i) === '-' && i !== part.length-1) { // part.length-2 => last char inside the [] group
 					// i-1 because the char before '-' is part of between
-					if (last < (i-1)) { meanings.push({text:part.substring(last,i-1),meaning:part.substring(last,i-1),type:'literally'}); }
+					if (last < (i-1)) {
+						meanings.push({text:part.substring(last,i-1),meaning:part.substring(last,i-1),type:'literally'}); 
+					}
 					meanings.push({text:part.substr(i-1,3),a:part.charAt(i-1),b:part.charAt(i+1),type:'between'});
 					last = i+2;	
 					i++;
@@ -719,7 +720,7 @@ define(function(require, exports, module) {
 				i++;
 			}	
 		} else { // no square brackets
-			var regex = /(\^|\$|{(\d+?)(,)?(\d*?)}(\??)|\*\?|\*|\+\?|\+|\?\?|\?|\\s|\\S|\\d|\\D|\\w|\\W|\\b|\\B|\\t|\\r|\\n)/g
+			var regex = /(\^|\$|\.|{(\d+?)(,)?(\d*?)}(\??)|\*\?|\*|\+\?|\+|\?\?|\?|\\s|\\S|\\d|\\D|\\w|\\W|\\b|\\B|\\t|\\r|\\n)/g
 			var last = 0;
 			var double_match = false;
 			var last_matches = null;
@@ -765,6 +766,9 @@ define(function(require, exports, module) {
 					meanings.push(get_special_meaning(matches[1].charAt(1)));
 				} else {
 					switch(matches[1]) {
+						case ".":
+							meanings.push({text:matches[1],meaning:'any single character',type:'special'});
+							break;
 						case "^":
 							meanings.push({text:matches[1],meaning:'assert position at start of the string',type:'assert'});
 							break;

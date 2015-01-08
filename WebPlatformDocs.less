@@ -288,3 +288,50 @@ a.regex-info {
         text-decoration: none;
     }
 }
+
+/* Dark UI Theme */
+@dark-bc-bg-highlight: #1671db;
+@dark-bc-highlight: rgba(255, 255, 255, 0.06);
+@dark-bc-text: #ddd;
+@dark-bc-text-link: #6bbeff;
+@dark-bc-text-thin-quiet: #bbb;
+@dark-bc-highlight-hard: rgba(255, 255, 255, 0.1);
+@dark-bc-btn-bg: #3f3f3f;
+@dark-bc-btn-border: #202020;
+@dark-bc-btn-border-focused: #2893ef;
+@dark-bc-btn-border-focused-glow: transparent;
+@dark-bc-shadow: rgba(0, 0, 0, 0.24);
+@dark-bc-shadow-small: rgba(0, 0, 0, 0.06);
+@dark-bc-shadow-medium: rgba(0, 0, 0, 0.12);
+@dark-bc-input-bg: #555;
+@dark-bc-panel-separator: #343434;
+
+.dark {
+    .regex-prop-defn,.regex-prop-summary,.regex-prop-values {
+        color: @dark-bc-text-thin-quiet;
+
+        h1, b {
+            color: @dark-bc-text;
+        }
+
+        a {
+            color: @dark-bc-text-link;
+        }
+
+        code {
+            color: @dark-bc-text;
+        }
+
+        dl dt {
+            color: @dark-bc-text;
+        }
+
+        .divider-holder .divider {
+            border-left: 1px solid @dark-bc-panel-separator;
+        }
+		
+		.text,.meaning {
+			color: @dark-bc-text;	
+		}
+    }
+}
