@@ -12,7 +12,29 @@ define(function(require, exports, module) {
     
     // Extension modules
     var InlineDocsViewer = require("InlineDocsViewer");
- 
+
+    function getRegexInfo( hostEditor ){
+          var langId = hostEditor.getLanguageForSelection().getId();
+          return function(line, pos){
+              var regex = get_regex(line, pos, langId);
+              // if the cursor is inside a regular expression
+              if (regex) {
+                  var summary = regex2summary(regex);
+
+                  if (summary) {
+                      var cheatsheet = get_cheatsheet();
+                      return {
+                        REGEX: regex.ex,
+                        SUMMARY:summary,
+                        CHEAT_NORMAL:cheatsheet.normal,
+                        CHEAT_FLAGS:cheatsheet.flags
+                      }			
+                  }
+              }
+            return null;
+          }
+
+      };
     
     function inlineProvider(hostEditor, pos) {
         // get programming language
@@ -31,22 +53,16 @@ define(function(require, exports, module) {
 		// get editor content
         var line = hostEditor.document.getLine(sel.start.line);
        
-		// get the regex
-        var regex = get_regex(line,sel.start,langId);
-
 		// if the cursor is inside a regular expression
-		if (regex) {
-			var summary = regex2summary(regex);
-			
-			if (summary) {
-				var cheatsheet = get_cheatsheet();
-				var result = new $.Deferred();
-				var inlineWidget = new InlineDocsViewer(regex.ex,{SUMMARY:summary,CHEAT_NORMAL:cheatsheet.normal,CHEAT_FLAGS:cheatsheet.flags});
-				inlineWidget.load(hostEditor);
-				result.resolve(inlineWidget);
-				return result.promise();				
-			}
-		}
+        var regexInfoFunction = getRegexInfo( hostEditor );
+		var regexInfo = regexInfoFunction( line, pos );
+        if(regexInfo){
+          var result = new $.Deferred();
+          var inlineWidget = new InlineDocsViewer( regexInfo.REGEX, regexInfo, regexInfoFunction, hostEditor );
+          inlineWidget.load(hostEditor);
+          result.resolve(inlineWidget);
+          return result.promise();
+        }
     }
     
 	/**

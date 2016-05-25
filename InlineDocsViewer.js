@@ -30,7 +30,6 @@
  */
 define(function (require, exports, module) {
   
-  var aa = /asdqwe/
     'use strict';
     
     // Load Brackets modules
@@ -54,39 +53,16 @@ define(function (require, exports, module) {
      * @param {!string} regexPropName
      * @param {!{SUMMARY:string},{CHEAT_normal},{CHEAT_flags}} regexPropDetails
      */
-    function InlineDocsViewer(regexPropName, regexPropDetails) {
+    function InlineDocsViewer(regexPropName, regexPropDetails, cb, editor) {
         InlineWidget.call(this);
         
       	// valueInfo.t = text (.m = meaning)
-        var propCheat_normal = regexPropDetails.CHEAT_NORMAL.map(function (valueInfo) {
-            return { text: valueInfo.t, meaning: valueInfo.m };
-        });
-		
-		// valueInfo.t = text (.type = type (lazy or greedy), .min: minimum, .max = maximum)
-        var propCheat_flags = regexPropDetails.CHEAT_FLAGS.map(function (valueInfo) {
-			var time = valueInfo.max == 'one' ? 'time' : 'times' ; 
-            return { text: valueInfo.t, type: valueInfo.type, min: valueInfo.min, max: valueInfo.max, time: time};
-        });
-		
-		
-        var templateVars = {
-            propName    : regexPropName,
-            summary     : regexPropDetails.SUMMARY,
-			cheatsheet_normal	: propCheat_normal,
-			cheatsheet_flags	: propCheat_flags
-        };
-        
-        var html = Mustache.render(inlineEditorTemplate, templateVars);
-		
-        this.$wrapperDiv = $(html);
-        this.$htmlContent.append(this.$wrapperDiv);
-        
-        this._sizeEditorToContent   = this._sizeEditorToContent.bind(this);
-        this._handleWheelScroll     = this._handleWheelScroll.bind(this);
-
-        this.$scroller = this.$wrapperDiv.find(".scroller");
-        this.$scroller.on("mousewheel", this._handleWheelScroll);
-        this._onKeydown = this._onKeydown.bind(this);
+        this.regexPropName = regexPropName;
+        this.regexPropDetails = regexPropDetails;
+        this.regenerateFunction = cb;
+        this.editor = editor;
+      
+		this.renderTemplate();
         this.setEditInput();
     }
     
@@ -97,6 +73,43 @@ define(function (require, exports, module) {
     InlineDocsViewer.prototype.$wrapperDiv = null;
     InlineDocsViewer.prototype.$scroller = null;
     
+  
+    InlineDocsViewer.prototype.createProperties = function(){
+        this.propCheat_normal = this.regexPropDetails.CHEAT_NORMAL.map(function (valueInfo) {
+            return { text: valueInfo.t, meaning: valueInfo.m };
+        });
+		
+		// valueInfo.t = text (.type = type (lazy or greedy), .min: minimum, .max = maximum)
+        this.propCheat_flags = this.regexPropDetails.CHEAT_FLAGS.map(function (valueInfo) {
+			var time = valueInfo.max == 'one' ? 'time' : 'times' ; 
+            return { text: valueInfo.t, type: valueInfo.type, min: valueInfo.min, max: valueInfo.max, time: time};
+        });
+    };
+  
+    InlineDocsViewer.prototype.getTemplateVars = function(){
+        this.templateVars = {
+            propName    : this.regexPropName,
+            summary     : this.regexPropDetails.SUMMARY,
+			cheatsheet_normal	: this.propCheat_normal,
+			cheatsheet_flags	: this.propCheat_flags
+        };
+    };
+  
+    InlineDocsViewer.prototype.renderTemplate = function(){
+        this.createProperties();
+        this.getTemplateVars();
+      
+        var html = Mustache.render(inlineEditorTemplate, this.templateVars);
+        this.$wrapperDiv = $(html);
+        this.$htmlContent.append(this.$wrapperDiv);
+        
+        this._sizeEditorToContent   = this._sizeEditorToContent.bind(this);
+        this._handleWheelScroll     = this._handleWheelScroll.bind(this);
+
+        this.$scroller = this.$wrapperDiv.find(".scroller");
+        this.$scroller.on("mousewheel", this._handleWheelScroll);
+        this._onKeydown = this._onKeydown.bind(this);
+    };
     /**
      * Handle scrolling.
      *
@@ -209,8 +222,8 @@ define(function (require, exports, module) {
     InlineDocsViewer.prototype.setEditInput = function(){
         var h1 = this.getEditInputContainer().find('h1');
         this.getEditInput().attr( 'placeholder', h1.html() );
-        this.getEditInputContainer().find('.pencil.edit').click(this.displayEditInput.bind(this));
-        this.getEditInputContainer().find('.icon.cross.edit').click(this.resetEditInputStatus.bind(this));
+        this.getEditInputContainer().find('.icon.pencil.edit').click(this.displayEditInput.bind(this));  this.getEditInputContainer().find('.icon.cross.edit').click(this.resetEditInputStatus.bind(this));
+        this.getEditInputContainer().find('.icon.checkmark.edit').click(this.getNewResult.bind(this));
     };
   
     InlineDocsViewer.prototype.displayEditInput = function(){
@@ -232,6 +245,28 @@ define(function (require, exports, module) {
   
     InlineDocsViewer.prototype.getEditInput = function(){
         return this.editInput || (this.editInput = this.getEditInputContainer().find('.input-container input'));
+    };
+  
+    InlineDocsViewer.prototype.cleanHtml = function(){
+        this.editInputContainer = null;
+        this.editInput = null;
+        this.$wrapperDiv.remove();
+    };
+  
+    InlineDocsViewer.prototype.getNewResult = function(){
+        var newRegEx = this.getEditInput().val();
+        var newPos = {
+          ch: (newRegEx.length+2)/2
+        }
+        var regExInfo = this.regenerateFunction('/' + newRegEx + '/g', newPos);
+        if( regExInfo ){
+            this.regexPropName = regExInfo.REGEX;
+            this.regexPropDetails = regExInfo;
+            this.cleanHtml();
+            this.renderTemplate();
+            this.load(this.editor);
+            this.setEditInput();
+        }
     };
   
     
