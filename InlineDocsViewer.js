@@ -29,6 +29,8 @@
  * Inline widget to display WebPlatformDocs JSON data nicely formatted
  */
 define(function (require, exports, module) {
+  
+  var aa = /asdqwe/
     'use strict';
     
     // Load Brackets modules
@@ -85,6 +87,7 @@ define(function (require, exports, module) {
         this.$scroller = this.$wrapperDiv.find(".scroller");
         this.$scroller.on("mousewheel", this._handleWheelScroll);
         this._onKeydown = this._onKeydown.bind(this);
+        this.setEditInput();
     }
     
     InlineDocsViewer.prototype = Object.create(InlineWidget.prototype);
@@ -202,6 +205,36 @@ define(function (require, exports, module) {
     InlineDocsViewer.prototype._sizeEditorToContent = function () {
         this.hostEditor.setInlineWidgetHeight(this, this.$wrapperDiv.height() + 20, true);
     };
+  
+    InlineDocsViewer.prototype.setEditInput = function(){
+        var h1 = this.getEditInputContainer().find('h1');
+        this.getEditInput().attr( 'placeholder', h1.html() );
+        this.getEditInputContainer().find('.pencil.edit').click(this.displayEditInput.bind(this));
+        this.getEditInputContainer().find('.icon.cross.edit').click(this.resetEditInputStatus.bind(this));
+    };
+  
+    InlineDocsViewer.prototype.displayEditInput = function(){
+        this.getEditInputContainer().find('.input-container').removeClass( 'hidden' );
+        this.$wrapperDiv.find('h1').addClass( 'hidden' );
+        this.getEditInputContainer().find('.pencil.edit').addClass( 'hidden' );
+    };
+  
+    InlineDocsViewer.prototype.resetEditInputStatus = function(){
+        this.getEditInputContainer().find('.input-container').addClass('hidden');
+        this.getEditInput().val('');
+        this.$wrapperDiv.find('h1').removeClass('hidden');
+        this.getEditInputContainer().find('.pencil.edit').removeClass('hidden');
+    };
+  
+    InlineDocsViewer.prototype.getEditInputContainer = function(){
+        return this.editInputContainer || (this.editInputContainer = this.$wrapperDiv.find('.new-regex-selector'));
+    };
+  
+    InlineDocsViewer.prototype.getEditInput = function(){
+        return this.editInput || (this.editInput = this.getEditInputContainer().find('.input-container input'));
+    };
+  
+    
     
     
     module.exports = InlineDocsViewer;
