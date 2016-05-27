@@ -359,7 +359,7 @@ a.regex-info {
         font-size: 16px;
         border-bottom: 2px solid white;
         color: white;
-        width: 70%;
+        width: 75%;
 
         &:focus {
           outline: none;
@@ -405,12 +405,31 @@ a.regex-info {
         }
 
         &.edit {
-            float: right;
-            margin-top: 15px;
-            margin-left: 5px;
-            font-size: 20px;
             cursor: pointer;
             width: 8%;
+        }
+    }
+  
+    .edit-container {
+        float: right;
+        margin-top: 15px;
+        margin-left: 5px;
+        font-size: 15px;
+      
+        .apply-regex {
+            border: 1px solid transparent;
+            padding: 3px;
+            border-radius: 3px;
+            background-color: #838383;
+            color: white;
+            cursor: pointer;
+            margin-right: 3px;
+            
+            &:hover {
+                background-color: #FFFFFF;
+                border-color: #838383;
+                color: #838383;
+            }
         }
     }
 }

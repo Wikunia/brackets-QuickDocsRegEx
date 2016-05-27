@@ -59,6 +59,8 @@ define(function(require, exports, module) {
         if(regexInfo){
           var result = new $.Deferred();
           var inlineWidget = new InlineDocsViewer( regexInfo.REGEX, regexInfo, regexInfoFunction, hostEditor );
+          inlineWidget.setCurrentLine( line );
+          inlineWidget.display();
           inlineWidget.load(hostEditor);
           result.resolve(inlineWidget);
           return result.promise();

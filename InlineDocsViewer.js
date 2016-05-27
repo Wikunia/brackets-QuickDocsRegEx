@@ -30,6 +30,7 @@
  */
 define(function (require, exports, module) {
   
+    var aa = /asdasd/
     'use strict';
     
     // Load Brackets modules
@@ -48,7 +49,6 @@ define(function (require, exports, module) {
     // Load CSS
     ExtensionUtils.loadStyleSheet(module, "WebPlatformDocs.less");
     
-    
     /**
      * @param {!string} regexPropName
      * @param {!{SUMMARY:string},{CHEAT_normal},{CHEAT_flags}} regexPropDetails
@@ -61,11 +61,9 @@ define(function (require, exports, module) {
         this.regexPropDetails = regexPropDetails;
         this.regenerateFunction = cb;
         this.editor = editor;
-      
-		this.renderTemplate();
-        this.setEditInput();
-    }
-    
+        this.lineNumber = editor.getCursorPos().line;
+    };
+  
     InlineDocsViewer.prototype = Object.create(InlineWidget.prototype);
     InlineDocsViewer.prototype.constructor = InlineDocsViewer;
     InlineDocsViewer.prototype.parentClass = InlineWidget.prototype;
@@ -91,7 +89,8 @@ define(function (require, exports, module) {
             propName    : this.regexPropName,
             summary     : this.regexPropDetails.SUMMARY,
 			cheatsheet_normal	: this.propCheat_normal,
-			cheatsheet_flags	: this.propCheat_flags
+			cheatsheet_flags	: this.propCheat_flags,
+            originalRegExMod    : this.originalRegExMod
         };
     };
   
@@ -224,9 +223,11 @@ define(function (require, exports, module) {
         this.getEditInput().attr( 'placeholder', h1.html() );
         this.getEditInputContainer().find('.icon.pencil.edit').click(this.displayEditInput.bind(this));  this.getEditInputContainer().find('.icon.cross.edit').click(this.resetEditInputStatus.bind(this));
         this.getEditInputContainer().find('.icon.checkmark.edit').click(this.getNewResult.bind(this));
+        this.getApplyButton().click(this.updateOriginalSelection.bind(this));
     };
   
     InlineDocsViewer.prototype.displayEditInput = function(){
+        this.hideApplyButton();
         this.getEditInputContainer().find('.input-container').removeClass( 'hidden' );
         this.$wrapperDiv.find('h1').addClass( 'hidden' );
         this.getEditInputContainer().find('.pencil.edit').addClass( 'hidden' );
@@ -237,6 +238,20 @@ define(function (require, exports, module) {
         this.getEditInput().val('');
         this.$wrapperDiv.find('h1').removeClass('hidden');
         this.getEditInputContainer().find('.pencil.edit').removeClass('hidden');
+    };
+  
+    InlineDocsViewer.prototype.updateOriginalSelection = function(){
+        var index = this.originalRegEx.exec( this.line ).index;
+        var startPos = {
+            line: this.lineNumber,
+            ch: index
+        };
+        var endPos = {
+            line: this.lineNumber,
+            ch: this.line.length
+        };
+        this.editor.document.replaceRange( this.newValue, startPos, endPos );
+        this.close();
     };
   
     InlineDocsViewer.prototype.getEditInputContainer = function(){
@@ -250,7 +265,20 @@ define(function (require, exports, module) {
     InlineDocsViewer.prototype.cleanHtml = function(){
         this.editInputContainer = null;
         this.editInput = null;
+        this.applyButton = null;
         this.$wrapperDiv.remove();
+    };
+  
+    InlineDocsViewer.prototype.getApplyButton = function(){
+        return this.applyButton || (this.applyButton = this.getEditInputContainer().find('.apply-regex'));
+    };
+  
+    InlineDocsViewer.prototype.displayApplyButton = function(){
+        this.getApplyButton().removeClass('hidden');
+    };
+  
+    InlineDocsViewer.prototype.hideApplyButton = function(){
+        this.getApplyButton().addClass('hidden');
     };
   
     InlineDocsViewer.prototype.getNewResult = function(){
@@ -258,7 +286,8 @@ define(function (require, exports, module) {
         var newPos = {
           ch: (newRegEx.length+2)/2
         }
-        var regExInfo = this.regenerateFunction('/' + newRegEx + '/g', newPos);
+        this.newValue = '/' + newRegEx + '/' + this.originalRegExMod;
+        var regExInfo = this.regenerateFunction(this.newValue, newPos);
         if( regExInfo ){
             this.regexPropName = regExInfo.REGEX;
             this.regexPropDetails = regExInfo;
@@ -266,11 +295,26 @@ define(function (require, exports, module) {
             this.renderTemplate();
             this.load(this.editor);
             this.setEditInput();
+            this.displayApplyButton();
         }
     };
   
-    
-    
+    InlineDocsViewer.prototype.setCurrentLine = function( currentLine ){
+        this.line = currentLine;
+        this.createRegEx();
+    };
+  
+    InlineDocsViewer.prototype.createRegEx = function(){
+        this.originalRegEx = new RegExp('[=\s\(:]{0,1}\/' + this.regexPropName + '\/[gim\s\r\;\)]{0,}');
+        var match = this.line.match( this.originalRegEx )[0];
+        var mod = match.match( /\/[gmi]{1,}$/ ) || [] ;
+        this.originalRegExMod = mod[0] ? mod[0].substr( 1, mod[0].length ) : '';
+    };
+  
+    InlineDocsViewer.prototype.display = function(){
+        this.renderTemplate();
+        this.setEditInput();
+    };
     
     module.exports = InlineDocsViewer;
 });

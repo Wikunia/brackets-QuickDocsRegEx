@@ -1,14 +1,19 @@
 <div class="regex-prop-defn" tabIndex="0"> <!-- tabIndex needed: otherwise click focuses CodeMirror scroller and Esc won't work -->
     <div class="regex-prop-summary">
         <span class="new-regex-selector">
-              <span class="icon pencil edit"></span>
-              <span class="input-container hidden">
-                  <span class="slash">/</span><input id="new-regex"/><span class="slash">/g</span>
-                  <span class="icon cross edit"></span>
-                  <span class="icon checkmark edit"></span>
-              </span>
-              <h1>{{propName}}</h1>
-          </span>
+            <span class="edit-container">
+                <span class="apply-regex hidden">Apply</span>
+                <span class="icon pencil edit"></span>
+            </span>
+            <span class="input-container hidden">
+                <span class="slash">/</span><input id="new-regex"/><span class="slash">/{{originalRegExMod}}</span>
+                <span class="edit-container">
+                    <span class="icon cross edit"></span>
+                    <span class="icon checkmark edit"></span>
+                </span>
+            </span>
+            <h1>{{propName}}</h1>
+        </span>
         <div>{{{summary}}}</div>
     </div>
     
