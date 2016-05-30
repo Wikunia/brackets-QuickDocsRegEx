@@ -247,6 +247,7 @@ define(function (require, exports, module) {
         this.hideApplyButton();
         this.getEditInput().val( this.regexPropName );
         this.getEditInputContainer().find('.input-container').removeClass( 'hidden' );
+        this.getEditInput().focus();
         this.getH1().addClass( 'hidden' );
         this.getEditInputContainer().find('.pencil.edit').addClass( 'hidden' );
     };
