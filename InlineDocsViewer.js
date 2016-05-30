@@ -30,7 +30,6 @@
  */
 define(function (require, exports, module) {
   
-    var aa = /asdasd/
     'use strict';
     
     // Load Brackets modules
@@ -45,6 +44,7 @@ define(function (require, exports, module) {
     
     // Lines height for scrolling
     var SCROLL_LINE_HEIGHT = 40;
+    var ENTER_KEY_CODE = 13;
     
     // Load CSS
     ExtensionUtils.loadStyleSheet(module, "WebPlatformDocs.less");
@@ -100,6 +100,7 @@ define(function (require, exports, module) {
       
         var html = Mustache.render(inlineEditorTemplate, this.templateVars);
         this.$wrapperDiv = $(html);
+        this.updateHTML();
         this.$htmlContent.append(this.$wrapperDiv);
         
         this._sizeEditorToContent   = this._sizeEditorToContent.bind(this);
@@ -109,6 +110,24 @@ define(function (require, exports, module) {
         this.$scroller.on("mousewheel", this._handleWheelScroll);
         this._onKeydown = this._onKeydown.bind(this);
     };
+  
+    InlineDocsViewer.prototype.updateHTML = function( options ){
+        this.getH1().empty();
+        this.$wrapperDiv.find('#summary').empty();
+        this.renderH1( options );
+        this.renderSummary( options );
+    };
+  
+    InlineDocsViewer.prototype.renderSummary = function( options ){
+        var summary = Mustache.render( '{{{summary}}}', options || this.templateVars );
+        this.$wrapperDiv.find('#summary').html( summary );
+    };
+  
+    InlineDocsViewer.prototype.renderH1 = function( options ){
+        var h1 = Mustache.render( '{{propName}}', options || this.templateVars );
+        this.getH1().html( h1 );
+    };
+  
     /**
      * Handle scrolling.
      *
@@ -219,26 +238,18 @@ define(function (require, exports, module) {
     };
   
     InlineDocsViewer.prototype.setEditInput = function(){
-        var h1 = this.getEditInputContainer().find('h1');
-        this.getEditInput().attr( 'placeholder', h1.html() );
-        this.getEditInputContainer().find('.icon.pencil.edit').click(this.displayEditInput.bind(this));  this.getEditInputContainer().find('.icon.cross.edit').click(this.resetEditInputStatus.bind(this));
-        this.getEditInputContainer().find('.icon.checkmark.edit').click(this.getNewResult.bind(this));
+        this.getEditInputContainer().find('.icon.pencil.edit').click(this.displayEditInput.bind(this));
+        this.getEditInput().keyup(this.checkKeyPressed.bind(this));
         this.getApplyButton().click(this.updateOriginalSelection.bind(this));
     };
   
     InlineDocsViewer.prototype.displayEditInput = function(){
         this.hideApplyButton();
         this.getEditInputContainer().find('.input-container').removeClass( 'hidden' );
-        this.$wrapperDiv.find('h1').addClass( 'hidden' );
+        this.getH1().addClass( 'hidden' );
         this.getEditInputContainer().find('.pencil.edit').addClass( 'hidden' );
     };
   
-    InlineDocsViewer.prototype.resetEditInputStatus = function(){
-        this.getEditInputContainer().find('.input-container').addClass('hidden');
-        this.getEditInput().val('');
-        this.$wrapperDiv.find('h1').removeClass('hidden');
-        this.getEditInputContainer().find('.pencil.edit').removeClass('hidden');
-    };
   
     InlineDocsViewer.prototype.updateOriginalSelection = function(){
         var index = this.originalRegEx.exec( this.line ).index;
@@ -254,23 +265,11 @@ define(function (require, exports, module) {
         this.close();
     };
   
-    InlineDocsViewer.prototype.getEditInputContainer = function(){
-        return this.editInputContainer || (this.editInputContainer = this.$wrapperDiv.find('.new-regex-selector'));
-    };
-  
-    InlineDocsViewer.prototype.getEditInput = function(){
-        return this.editInput || (this.editInput = this.getEditInputContainer().find('.input-container input'));
-    };
-  
     InlineDocsViewer.prototype.cleanHtml = function(){
         this.editInputContainer = null;
         this.editInput = null;
         this.applyButton = null;
-        this.$wrapperDiv.remove();
-    };
-  
-    InlineDocsViewer.prototype.getApplyButton = function(){
-        return this.applyButton || (this.applyButton = this.getEditInputContainer().find('.apply-regex'));
+        this.h1 = null;
     };
   
     InlineDocsViewer.prototype.displayApplyButton = function(){
@@ -282,21 +281,50 @@ define(function (require, exports, module) {
     };
   
     InlineDocsViewer.prototype.getNewResult = function(){
-        var newRegEx = this.getEditInput().val();
+        var newRegEx = this.lastValue = this.getInputValue();
         var newPos = {
           ch: (newRegEx.length+2)/2
         }
         this.newValue = '/' + newRegEx + '/' + this.originalRegExMod;
         var regExInfo = this.regenerateFunction(this.newValue, newPos);
         if( regExInfo ){
-            this.regexPropName = regExInfo.REGEX;
+            this.regexPropName = this.templateVars.propName = regExInfo.REGEX;
+            this.templateVars.summary = regExInfo.SUMMARY;
             this.regexPropDetails = regExInfo;
-            this.cleanHtml();
-            this.renderTemplate();
+            this.updateHTML();
             this.load(this.editor);
-            this.setEditInput();
             this.displayApplyButton();
         }
+    };
+  
+    InlineDocsViewer.prototype.createRegEx = function(){
+        this.originalRegEx = new RegExp('[=\s\(:]{0,1}\/' + escapeRegEx(this.regexPropName) + '\/[gim\s\r\;\)]{0,}');
+        var match = (this.line.match( this.originalRegEx ) || [''])[0];
+        var mod = match.match( /\/[gmi]{1,}$/ ) || [] ;
+        this.originalRegExMod = mod[0] ? mod[0].substr( 1, mod[0].length ) : '';
+    };
+  
+    InlineDocsViewer.prototype.checkKeyPressed = function( e ){
+        var key = e.keyCode;
+        var newValue = this.getInputValue();
+        if( !newValue.length ){
+          this.hideApplyButton();
+        }else if( key === ENTER_KEY_CODE ){
+          this.updateOriginalSelection();
+        }else{
+          this.checkInputValue( newValue );
+        }
+    };
+  
+    InlineDocsViewer.prototype.checkInputValue = function( inputValue ){
+        if( inputValue !== this.lastValue ){
+          this.getNewResult();
+        }
+    };
+  
+    InlineDocsViewer.prototype.display = function(){
+        this.renderTemplate();
+        this.setEditInput();
     };
   
     InlineDocsViewer.prototype.setCurrentLine = function( currentLine ){
@@ -304,16 +332,28 @@ define(function (require, exports, module) {
         this.createRegEx();
     };
   
-    InlineDocsViewer.prototype.createRegEx = function(){
-        this.originalRegEx = new RegExp('[=\s\(:]{0,1}\/' + this.regexPropName + '\/[gim\s\r\;\)]{0,}');
-        var match = this.line.match( this.originalRegEx )[0];
-        var mod = match.match( /\/[gmi]{1,}$/ ) || [] ;
-        this.originalRegExMod = mod[0] ? mod[0].substr( 1, mod[0].length ) : '';
+    InlineDocsViewer.prototype.getInputValue = function(){
+      return this.getEditInput().val();
     };
   
-    InlineDocsViewer.prototype.display = function(){
-        this.renderTemplate();
-        this.setEditInput();
+    InlineDocsViewer.prototype.getH1 = function(){
+        return this.h1 || (this.h1 = this.$wrapperDiv.find('h1'));
+    };
+  
+    InlineDocsViewer.prototype.getEditInputContainer = function(){
+        return this.editInputContainer || (this.editInputContainer = this.$wrapperDiv.find('.new-regex-selector'));
+    };
+  
+    InlineDocsViewer.prototype.getEditInput = function(){
+        return this.editInput || (this.editInput = this.getEditInputContainer().find('.input-container input'));
+    };
+  
+    InlineDocsViewer.prototype.getApplyButton = function(){
+        return this.applyButton || (this.applyButton = this.getEditInputContainer().find('.apply-regex'));
+    };
+  
+    var escapeRegEx = function(text) {
+        return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
     };
     
     module.exports = InlineDocsViewer;
