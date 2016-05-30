@@ -245,11 +245,11 @@ define(function (require, exports, module) {
   
     InlineDocsViewer.prototype.displayEditInput = function(){
         this.hideApplyButton();
+        this.getEditInput().val( this.regexPropName );
         this.getEditInputContainer().find('.input-container').removeClass( 'hidden' );
         this.getH1().addClass( 'hidden' );
         this.getEditInputContainer().find('.pencil.edit').addClass( 'hidden' );
     };
-  
   
     InlineDocsViewer.prototype.updateOriginalSelection = function(){
         var index = this.originalRegEx.exec( this.line ).index;
@@ -298,9 +298,10 @@ define(function (require, exports, module) {
     };
   
     InlineDocsViewer.prototype.createRegEx = function(){
-        this.originalRegEx = new RegExp('[=\s\(:]{0,1}\/' + escapeRegEx(this.regexPropName) + '\/[gim\s\r\;\)]{0,}');
+        this.originalRegEx = new RegExp('\/' + escapeRegEx(this.regexPropName) + '\/[gim\s\r\;\)]{0,}');
         var match = (this.line.match( this.originalRegEx ) || [''])[0];
         var mod = match.match( /\/[gmi]{1,}$/ ) || [] ;
+        var prefix = match.match( /^[=\s\(:]{0,1}\// ) || [];
         this.originalRegExMod = mod[0] ? mod[0].substr( 1, mod[0].length ) : '';
     };
   
