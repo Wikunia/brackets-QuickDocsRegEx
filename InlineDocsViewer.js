@@ -29,6 +29,7 @@
  * Inline widget to display WebPlatformDocs JSON data nicely formatted
  */
 define(function (require, exports, module) {
+  
     'use strict';
     
     // Load Brackets modules
@@ -43,40 +44,63 @@ define(function (require, exports, module) {
     
     // Lines height for scrolling
     var SCROLL_LINE_HEIGHT = 40;
+    var ENTER_KEY_CODE = 13;
     
     // Load CSS
     ExtensionUtils.loadStyleSheet(module, "WebPlatformDocs.less");
-    
     
     /**
      * @param {!string} regexPropName
      * @param {!{SUMMARY:string},{CHEAT_normal},{CHEAT_flags}} regexPropDetails
      */
-    function InlineDocsViewer(regexPropName, regexPropDetails) {
+    function InlineDocsViewer(regexPropName, regexPropDetails, cb, editor) {
         InlineWidget.call(this);
         
       	// valueInfo.t = text (.m = meaning)
-        var propCheat_normal = regexPropDetails.CHEAT_NORMAL.map(function (valueInfo) {
+        this.regexPropName = regexPropName;
+        this.regexPropDetails = regexPropDetails;
+        this.regenerateFunction = cb;
+        this.editor = editor;
+        this.lineNumber = editor.getCursorPos().line;
+    };
+  
+    InlineDocsViewer.prototype = Object.create(InlineWidget.prototype);
+    InlineDocsViewer.prototype.constructor = InlineDocsViewer;
+    InlineDocsViewer.prototype.parentClass = InlineWidget.prototype;
+    
+    InlineDocsViewer.prototype.$wrapperDiv = null;
+    InlineDocsViewer.prototype.$scroller = null;
+    
+  
+    InlineDocsViewer.prototype.createProperties = function(){
+        this.propCheat_normal = this.regexPropDetails.CHEAT_NORMAL.map(function (valueInfo) {
             return { text: valueInfo.t, meaning: valueInfo.m };
         });
 		
 		// valueInfo.t = text (.type = type (lazy or greedy), .min: minimum, .max = maximum)
-        var propCheat_flags = regexPropDetails.CHEAT_FLAGS.map(function (valueInfo) {
+        this.propCheat_flags = this.regexPropDetails.CHEAT_FLAGS.map(function (valueInfo) {
 			var time = valueInfo.max == 'one' ? 'time' : 'times' ; 
             return { text: valueInfo.t, type: valueInfo.type, min: valueInfo.min, max: valueInfo.max, time: time};
         });
-		
-		
-        var templateVars = {
-            propName    : regexPropName,
-            summary     : regexPropDetails.SUMMARY,
-			cheatsheet_normal	: propCheat_normal,
-			cheatsheet_flags	: propCheat_flags
+    };
+  
+    InlineDocsViewer.prototype.getTemplateVars = function(){
+        this.templateVars = {
+            propName    : this.regexPropName,
+            summary     : this.regexPropDetails.SUMMARY,
+			cheatsheet_normal	: this.propCheat_normal,
+			cheatsheet_flags	: this.propCheat_flags,
+            originalRegExMod    : this.originalRegExMod
         };
-        
-        var html = Mustache.render(inlineEditorTemplate, templateVars);
-		
+    };
+  
+    InlineDocsViewer.prototype.renderTemplate = function(){
+        this.createProperties();
+        this.getTemplateVars();
+      
+        var html = Mustache.render(inlineEditorTemplate, this.templateVars);
         this.$wrapperDiv = $(html);
+        this.updateHTML();
         this.$htmlContent.append(this.$wrapperDiv);
         
         this._sizeEditorToContent   = this._sizeEditorToContent.bind(this);
@@ -85,15 +109,25 @@ define(function (require, exports, module) {
         this.$scroller = this.$wrapperDiv.find(".scroller");
         this.$scroller.on("mousewheel", this._handleWheelScroll);
         this._onKeydown = this._onKeydown.bind(this);
-    }
-    
-    InlineDocsViewer.prototype = Object.create(InlineWidget.prototype);
-    InlineDocsViewer.prototype.constructor = InlineDocsViewer;
-    InlineDocsViewer.prototype.parentClass = InlineWidget.prototype;
-    
-    InlineDocsViewer.prototype.$wrapperDiv = null;
-    InlineDocsViewer.prototype.$scroller = null;
-    
+    };
+  
+    InlineDocsViewer.prototype.updateHTML = function( options ){
+        this.getH1().empty();
+        this.$wrapperDiv.find('#summary').empty();
+        this.renderH1( options );
+        this.renderSummary( options );
+    };
+  
+    InlineDocsViewer.prototype.renderSummary = function( options ){
+        var summary = Mustache.render( '{{{summary}}}', options || this.templateVars );
+        this.$wrapperDiv.find('#summary').html( summary );
+    };
+  
+    InlineDocsViewer.prototype.renderH1 = function( options ){
+        var h1 = Mustache.render( '{{propName}}', options || this.templateVars );
+        this.getH1().html( h1 );
+    };
+  
     /**
      * Handle scrolling.
      *
@@ -202,7 +236,127 @@ define(function (require, exports, module) {
     InlineDocsViewer.prototype._sizeEditorToContent = function () {
         this.hostEditor.setInlineWidgetHeight(this, this.$wrapperDiv.height() + 20, true);
     };
-    
+  
+    InlineDocsViewer.prototype.setEditInput = function(){
+        this.getEditInputContainer().find('.icon.pencil.edit').click(this.displayEditInput.bind(this));
+        this.getEditInput().keyup(this.checkKeyPressed.bind(this));
+        this.getApplyButton().click(this.updateOriginalSelection.bind(this));
+    };
+  
+    InlineDocsViewer.prototype.displayEditInput = function(){
+        this.hideApplyButton();
+        this.getEditInput().val( this.regexPropName );
+        this.getEditInputContainer().find('.input-container').removeClass( 'hidden' );
+        this.getEditInput().focus();
+        this.getH1().addClass( 'hidden' );
+        this.getEditInputContainer().find('.pencil.edit').addClass( 'hidden' );
+    };
+  
+    InlineDocsViewer.prototype.updateOriginalSelection = function(){
+        var index = this.originalRegEx.exec( this.line ).index;
+        var startPos = {
+            line: this.lineNumber,
+            ch: index
+        };
+        var endPos = {
+            line: this.lineNumber,
+            ch: this.line.length
+        };
+        this.editor.document.replaceRange( this.newValue, startPos, endPos );
+        this.close();
+    };
+  
+    InlineDocsViewer.prototype.cleanHtml = function(){
+        this.editInputContainer = null;
+        this.editInput = null;
+        this.applyButton = null;
+        this.h1 = null;
+    };
+  
+    InlineDocsViewer.prototype.displayApplyButton = function(){
+        this.getApplyButton().removeClass('hidden');
+    };
+  
+    InlineDocsViewer.prototype.hideApplyButton = function(){
+        this.getApplyButton().addClass('hidden');
+    };
+  
+    InlineDocsViewer.prototype.getNewResult = function(){
+        var newRegEx = this.lastValue = this.getInputValue();
+        var newPos = {
+          ch: (newRegEx.length+2)/2
+        }
+        this.newValue = '/' + newRegEx + '/' + this.originalRegExMod;
+        var regExInfo = this.regenerateFunction(this.newValue, newPos);
+        if( regExInfo ){
+            this.regexPropName = this.templateVars.propName = regExInfo.REGEX;
+            this.templateVars.summary = regExInfo.SUMMARY;
+            this.regexPropDetails = regExInfo;
+            this.updateHTML();
+            this.load(this.editor);
+            this.displayApplyButton();
+        }
+    };
+  
+    InlineDocsViewer.prototype.createRegEx = function(){
+        this.originalRegEx = new RegExp('\/' + escapeRegEx(this.regexPropName) + '\/[gim\s\r\;\)]{0,}');
+        var match = (this.line.match( this.originalRegEx ) || [''])[0];
+        var mod = match.match( /\/[gmi]{1,}$/ ) || [] ;
+        var prefix = match.match( /^[=\s\(:]{0,1}\// ) || [];
+        this.originalRegExMod = mod[0] ? mod[0].substr( 1, mod[0].length ) : '';
+    };
+  
+    InlineDocsViewer.prototype.checkKeyPressed = function( e ){
+        var key = e.keyCode;
+        var newValue = this.getInputValue();
+        if( !newValue.length ){
+          this.hideApplyButton();
+        }else if( key === ENTER_KEY_CODE ){
+          this.updateOriginalSelection();
+        }else{
+          this.checkInputValue( newValue );
+        }
+    };
+  
+    InlineDocsViewer.prototype.checkInputValue = function( inputValue ){
+        if( inputValue !== this.lastValue ){
+          this.getNewResult();
+        }
+    };
+  
+    InlineDocsViewer.prototype.display = function(){
+        this.renderTemplate();
+        this.setEditInput();
+    };
+  
+    InlineDocsViewer.prototype.setCurrentLine = function( currentLine ){
+        this.line = currentLine;
+        this.createRegEx();
+    };
+  
+    InlineDocsViewer.prototype.getInputValue = function(){
+      return this.getEditInput().val();
+    };
+  
+    InlineDocsViewer.prototype.getH1 = function(){
+        return this.h1 || (this.h1 = this.$wrapperDiv.find('h1'));
+    };
+  
+    InlineDocsViewer.prototype.getEditInputContainer = function(){
+        return this.editInputContainer || (this.editInputContainer = this.$wrapperDiv.find('.new-regex-selector'));
+    };
+  
+    InlineDocsViewer.prototype.getEditInput = function(){
+        return this.editInput || (this.editInput = this.getEditInputContainer().find('.input-container input'));
+    };
+  
+    InlineDocsViewer.prototype.getApplyButton = function(){
+        return this.applyButton || (this.applyButton = this.getEditInputContainer().find('.apply-regex'));
+    };
+  
+    var escapeRegEx = function(text) {
+        return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    };
     
     module.exports = InlineDocsViewer;
 });

@@ -20,8 +20,18 @@
 
 
 /* Typography */
- @font-weight-semibold: 500;
+@font-weight-semibold: 500;
 
+@font-face {
+    font-family: 'icomoon';
+    src:    url('fonts/icomoon.eot?ajsi2r');
+    src:    url('fonts/icomoon.eot?ajsi2r#iefix') format('embedded-opentype'),
+        url('fonts/icomoon.ttf?ajsi2r') format('truetype'),
+        url('fonts/icomoon.woff?ajsi2r') format('woff'),
+        url('fonts/icomoon.svg?ajsi2r#icomoon') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
 
 /* Overall inline widget content container */
 .regex-prop-defn {
@@ -335,3 +345,85 @@ a.regex-info {
 		}
     }
 }
+
+/*Input to modify the regex*/
+.new-regex-selector {
+  
+    input {
+
+        margin-top: 10px;
+        border-radius: 1px;
+        background-color: transparent;
+        border: none;
+        height: 25px;
+        font-size: 16px;
+        border-bottom: 2px solid white;
+        color: white;
+        width: 70%;
+
+        &:focus {
+          outline: none;
+          color: white;
+        }
+    }
+    
+    .slash {
+        color: white;
+        font-size: 25px;
+        vertical-align: bottom;
+        width: 5%;
+    }
+
+    .hidden {
+        display: none;
+    }
+  
+    .icon {
+      /* use !important to prevent issues with browser extensions that change fonts */
+        font-family: 'icomoon' !important;
+        speak: none;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        line-height: 1;
+
+        /* Better Font Rendering =========== */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      
+        &.pencil:before{
+            content: "\e905";
+        }
+        &.edit {
+            cursor: pointer;
+            width: 8%;
+        }
+    }
+  
+    .edit-container {
+        float: right;
+        margin-top: 15px;
+        margin-left: 5px;
+        font-size: 15px;
+      
+        .apply-regex {
+            border: 1px solid transparent;
+            padding: 3px;
+            border-radius: 3px;
+            background-color: #838383;
+            color: white;
+            cursor: pointer;
+            margin-right: 3px;
+            
+            &:hover {
+                background-color: #FFFFFF;
+                border-color: #838383;
+                color: #838383;
+            }
+        }
+    }
+}
+
+
+
